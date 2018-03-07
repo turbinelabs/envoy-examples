@@ -15,47 +15,28 @@ The Envoy documentation provides a good overview of
 We'll also use [wrk](https://github.com/wg/wrk)
 and [curl](https://curl.haxx.se/) to drive load against our services.
 
-# Step 5
+We highly recommend you start with step1.
 
-Request routing is another powerful traffic control tool that Envoy provides. In
-this example we'll create a second cluster to represent a new version of our
-service. 
+# Step 6
 
-```diff
-     - socket_address:
-         address: service1
-         port_value: 80
-+  - name: service1a
-+    connect_timeout: 0.250s
-+    type: strict_dns
-+    lb_policy: round_robin
-+    http2_protocol_options: {}
-+    circuit_breakers:
-+      thresholds:
-+        - priority: DEFAULT
-+          max_connections: 1
-+          max_requests: 1
-+        - priority: HIGH
-+          max_connections: 2
-+          max_requests: 2
-+    hosts:
-     - socket_address:
-         address: service1a
-         port_value: 80
-```
-
-Then we'll add routing rule that lets us test the new version of that
-service by including an HTTP header.
+In the last step we used header based routing to deploy a new service version
+before releasing it. In this step we'll execute an incremental release. We can
+leave our header-based routing in place, but add a new match rule that will
+activate 25% of the time. The `runtime` object in the route match tells Envoy to
+roll a 100 sided die, and if the result is less than the value of the runtime
+key (we default it to 25 here), then activate the match. By routing to a
+different cluster in this match, we can send a percentage of traffic to our new
+version.
 
 ```diff
-                   priority: HIGH
-                 decorator:
-                   operation: updateAvailability
+                     retry_on: 5xx
+                     num_retries: 3
+                     per_try_timeout: 0.300s
 +              - match:
 +                  prefix: "/"
-+                  headers:
-+                    - name: "x-canary-version"
-+                      value: "service1a"
++                  runtime:
++                    default_value: 25
++                    runtime_key: routing.traffic_shift.helloworld
 +                route:
 +                  cluster: service1a
 +                  retry_policy:
@@ -67,7 +48,6 @@ service by including an HTTP header.
                  route:
 ```
 
-
 Shut down your example, if needed by running
 
 `docker-compose down --remove-orphans`
@@ -76,25 +56,19 @@ in the `zipkin-tracing` directory, and then start your example again by running
 
 `docker-compose up --build -d`
 
-If we make a request to our service with no headers, you'll get a response from
-service 1.
+Now if we make a request to our service with no headers we should see responses
+from service 1a about 25% of the time.
 
-```console
-> curl localhost:8000/service/1
-Hello from behind Envoy (service 1)! hostname: d0adee810fc4 resolvedhostname: 172.18.0.2
-```
+# Wrapup
 
-However if we include the `x-canary-version` header, Envoy will route our
-request to service 1a.
+This touches on a number of Envoy traffic control features, but you can go much
+deeper. Our product, [Houston](https://www.turbinelabs.io/product) provides a UI
+for configuring routes, along with a dashboard that lets you ensure that your
+changes haven't impacted customers.
 
-```console
-> curl -H 'x-canary-version: service1a' localhost:8000/service/1
-Hello from behind Envoy (service 1a)! hostname: 569ee89eebc8 resolvedhostname: 172.18.0.6
-```
+There's also [video of a talk](https://www.youtube.com/watch?v=OZhLrTFiMs8) I
+gave on these examples, as well
+as
+[slides](https://www.slideshare.net/MarkMcBride11/traffic-control-with-envoy-proxy). If
+you have any questions, let me know, mark@turbinelabs.io, or @mccv on Twitter.
 
-This is a powerful feature. It allows you to
-[separate the deploy and release phases](https://blog.turbinelabs.io/deploy-not-equal-release-part-one-4724bc1e726b)
-of your application, paving the way for canary releases and 
-[testing in production](https://opensource.com/article/17/8/testing-production).
-
-To proceed to the next step run `git checkout step6`.
