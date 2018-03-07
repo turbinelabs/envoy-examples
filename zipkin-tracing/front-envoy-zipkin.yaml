@@ -27,6 +27,7 @@ static_resources:
                       value: "POST"
                 route:
                   cluster: service1
+                  priority: HIGH
                 decorator:
                   operation: updateAvailability
               - match:
@@ -48,9 +49,20 @@ static_resources:
     type: strict_dns
     lb_policy: round_robin
     http2_protocol_options: {}
+    circuit_breakers:
+      thresholds:
+        - priority: DEFAULT
+          max_connections: 1
+          max_requests: 1
+        - priority: HIGH
+          max_connections: 2
+          max_requests: 2
     hosts:
     - socket_address:
         address: service1
+        port_value: 80
+    - socket_address:
+        address: service1a
         port_value: 80
   - name: zipkin
     connect_timeout: 1s
