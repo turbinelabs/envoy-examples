@@ -15,15 +15,27 @@ The Envoy documentation provides a good overview of
 We'll also use [wrk](https://github.com/wg/wrk)
 and [curl](https://curl.haxx.se/) to drive load against our services.
 
-# Step 1
+# Step 2
 
-In this step we add a configurable latency and success rate to the python
-service that underlies all the Envoy examples. Check out this tag and
-start the zipkin tracing example by running
+In this step we add a retry policy to all service requests by adding the
+following to the `zipkin-tracing/front-envoy-zipkin.yml` file
+
+```diff
+                   cluster: service1
++                  retry_policy:
++                    retry_on: 5xx
++                    num_retries: 3
++                    per_try_timeout: 0.300s
+                 decorator:
+```
+
+Shut down your example, if needed by running
+
+`docker-compose down --remove-orphans`
+
+in the `zipkin-tracing` directory, and then start your example again by running
 
 `docker-compose up --build -d`
-
-in the `zipkin-tracing` directory.
 
 Run wrk with 
 
@@ -32,23 +44,20 @@ Run wrk with
 and you should see results like
 
 ```console
-Running 5s test @ http://localhost:8000/service/1
-  1 threads and 1 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    55.01ms    2.41ms  61.58ms   72.83%
-    Req/Sec    17.72      3.82    20.00     84.00%
+    Latency    56.99ms   10.16ms 126.43ms   96.67%
+    Req/Sec    17.18      4.17    20.00     78.00%
   Latency Distribution
-     50%   54.84ms
-     75%   56.53ms
-     90%   58.25ms
-     99%   61.58ms
-  92 requests in 5.10s, 24.12KB read
-  Non-2xx or 3xx responses: 7
-Requests/sec:     18.04
-Transfer/sec:      4.73KB
+     50%   54.97ms
+     75%   57.91ms
+     90%   60.97ms
+     99%  126.43ms
+  89 requests in 5.09s, 22.17KB read
+Requests/sec:     17.49
+Transfer/sec:      4.36KB
 ```
 
-As you can see, success rate is less than 100%, and the latency histogram has a
-median of roughly 50 ms.
+As you can see, success rate is back to 100%. Retrying the request has brought
+our success rate from 95% to 99.75%.
 
-To proceed to the next step run `git checkout step2`.
+To proceed to the next step run `git checkout step3`.
