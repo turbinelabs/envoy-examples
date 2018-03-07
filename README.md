@@ -15,18 +15,24 @@ The Envoy documentation provides a good overview of
 We'll also use [wrk](https://github.com/wg/wrk)
 and [curl](https://curl.haxx.se/) to drive load against our services.
 
-# Step 2
+# Step 3
 
-In this step we add a retry policy to all service requests by adding the
-following to the `zipkin-tracing/front-envoy-zipkin.yml` file
+In this step we modify our retry policy to not affect POST requests. POST
+request tend to modify state, and are generally unsafe to retry. By adding a new
+match rule to the `zipkin-tracing/front-envoy-zipkin.yml` file we can cause
+POSTs to have no retry policy, but leave the existing retry policy in place for
+all other requests.
 
 ```diff
-                   cluster: service1
-+                  retry_policy:
-+                    retry_on: 5xx
-+                    num_retries: 3
-+                    per_try_timeout: 0.300s
-                 decorator:
++              - match:
++                  prefix: "/"
++                  headers:
++                    - name: ":method"
++                      value: "POST"
++                route:
++                  cluster: service1
++                decorator:
++                  operation: updateAvailability
 ```
 
 Shut down your example, if needed by running
@@ -37,7 +43,7 @@ in the `zipkin-tracing` directory, and then start your example again by running
 
 `docker-compose up --build -d`
 
-Run wrk with 
+Run wrk with
 
 `wrk -c 1 -t 1 --latency -d 5s http://localhost:8000/service/1`
 
@@ -57,7 +63,18 @@ Requests/sec:     17.49
 Transfer/sec:      4.36KB
 ```
 
-As you can see, success rate is back to 100%. Retrying the request has brought
-our success rate from 95% to 99.75%.
+As you can see, success rate for GET requests is still 100%. However if you run
+curl in a loop like the following
 
-To proceed to the next step run `git checkout step3`.
+`for i in `seq 1 100`; do curl -XPOST -v -q --stderr - localhost:8000/service/1 | grep '< HTTP'; done | sort | uniq -c`
+
+You should see some failures.
+
+```console
+  97 < HTTP/1.1 200 OK
+   3 < HTTP/1.1 503 Service Unavailable
+```
+
+This is good! Our retry policy doesn't affect POST requests, only GETs
+
+To proceed to the next step run `git checkout step4`.

@@ -22,6 +22,15 @@ static_resources:
               routes:
               - match:
                   prefix: "/"
+                  headers:
+                    - name: ":method"
+                      value: "POST"
+                route:
+                  cluster: service1
+                decorator:
+                  operation: updateAvailability
+              - match:
+                  prefix: "/"
                 route:
                   cluster: service1
                   retry_policy:
