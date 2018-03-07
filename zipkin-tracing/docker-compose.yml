@@ -45,7 +45,7 @@ services:
     networks:
       envoymesh:
         aliases:
-          - service1
+          - service1a
     environment:
       - SERVICE_NAME=1a
       - LATENCY=50

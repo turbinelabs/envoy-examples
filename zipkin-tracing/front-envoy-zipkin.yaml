@@ -32,6 +32,17 @@ static_resources:
                   operation: updateAvailability
               - match:
                   prefix: "/"
+                  headers:
+                    - name: "x-canary-version"
+                      value: "service1a"
+                route:
+                  cluster: service1a
+                  retry_policy:
+                    retry_on: 5xx
+                    num_retries: 3
+                    per_try_timeout: 0.300s
+              - match:
+                  prefix: "/"
                 route:
                   cluster: service1
                   retry_policy:
@@ -61,6 +72,20 @@ static_resources:
     - socket_address:
         address: service1
         port_value: 80
+  - name: service1a
+    connect_timeout: 0.250s
+    type: strict_dns
+    lb_policy: round_robin
+    http2_protocol_options: {}
+    circuit_breakers:
+      thresholds:
+        - priority: DEFAULT
+          max_connections: 1
+          max_requests: 1
+        - priority: HIGH
+          max_connections: 2
+          max_requests: 2
+    hosts:
     - socket_address:
         address: service1a
         port_value: 80
