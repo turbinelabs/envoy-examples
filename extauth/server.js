@@ -17,29 +17,34 @@ let http = require('http')
 
 let handleRequest = (request, response) => {
   console.log(request.headers)
-  if(request.headers['x-user-id'] == 'mark') {
-    let headers = {
-      'Content-Length': '2',
-      'X-auth-user': 'user123',
-      'path': request.url,
-      'status': '200',
-      'method': 'GET'
+  let userClusterMap = {
+    'mark': 'service1',
+    'jane': 'service2',
+  }
+  let user = request.headers['x-user-id']
+  if (user) {
+    let userCluster = userClusterMap[user]
+    if (userCluster) {
+      let headers = {
+        'Content-Length': '2',
+        'x-user-cluster': userCluster
+      }
+      response.writeHead(200, headers)
+      response.end("OK")
+    } else {
+      let body = `user ${user} not found`
+      let headers = {
+        'Content-Length': body.length
+      }
+      response.writeHead(401, headers)
+      response.end(body)
     }
-    response.writeHead(200, headers)
-    response.end("OK")
   } else {
     body = 'must specify a user'
-    let user = request.headers['x-user-id']
-    if(user) {
-      body = `user ${user} not found`
-    }
     let headers = {
-      'Content-Length': body.length,
-      'path': request.url,
-      'status': '200',
-      'method': 'GET'
+      'Content-Length': body.length
     }
-    response.writeHead(403, headers)
+    response.writeHead(400, headers)
     response.end(body)
   }
 }

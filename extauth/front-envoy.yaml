@@ -17,14 +17,10 @@ static_resources:
               domains:
               - "*"
               routes:
-              - match:
-                  prefix: "/service/1"
-                route:
-                  cluster: service1
-              - match:
-                  prefix: "/service/2"
-                route:
-                  cluster: service2
+                - match:
+                    prefix: /
+                  route:
+                    cluster: service1
           http_filters:
           - name: envoy.ext_authz
             config:
@@ -42,7 +38,6 @@ static_resources:
     connect_timeout: 0.25s
     type: strict_dns
     lb_policy: round_robin
-    http2_protocol_options: {}
     hosts:
     - socket_address:
         address: service1
@@ -51,7 +46,6 @@ static_resources:
     connect_timeout: 0.25s
     type: strict_dns
     lb_policy: round_robin
-    http2_protocol_options: {}
     hosts:
     - socket_address:
         address: service2
