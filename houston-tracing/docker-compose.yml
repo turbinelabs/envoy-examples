@@ -1,0 +1,80 @@
+version: '2'
+services:
+  rotor:
+    image: turbinelabs/rotor:0.18.2
+    volumes:
+      - ./rotor-clusters.yml:/etc/rotor-clusters.yml
+    environment:
+      ROTOR_API_KEY: ${ROTOR_API_KEY}
+      ROTOR_API_ZONE_NAME: ${ROTOR_API_ZONE_NAME}
+      ROTOR_CMD: file
+      ROTOR_FILE_FILENAME: /etc/rotor-clusters.yml
+      ROTOR_FILE_FORMAT: yaml
+    expose:
+      - "50000"
+    networks:
+      envoymesh:
+        aliases:
+          - rotor
+  front-envoy:
+    image: turbinelabs/envoy-simple:0.18.2
+    environment:
+      ENVOY_NODE_CLUSTER: front-proxy
+      ENVOY_NODE_ZONE: ${ROTOR_API_ZONE_NAME}
+      ENVOY_XDS_HOST: rotor
+      ENVOY_ZIPKIN_COLLECTOR_HOST: zipkin
+      ENVOY_ZIPKIN_COLLECTOR_PORT: 9411
+      ENVOY_ZIPKIN_COLLECTOR_CLUSTER: zipkin
+      ENVOY_ZIPKIN_COLLECTOR_ENDPOINT: /api/v1/spans
+    networks:
+      - envoymesh
+    expose:
+      - "80"
+      - "9999"
+    ports:
+      - "80:80"
+      - "9999:9999"
+  all-in-one-client:
+    image: turbinelabs/all-in-one-client
+    networks:
+      envoymesh:
+        ipv4_address: 10.0.0.10
+    ports:
+      - "8080"
+  all-in-one-server-blue:
+    image: turbinelabs/all-in-one-server
+    environment:
+      TBN_COLOR: 1B9AE4
+      TBN_NAME: blue
+    networks:
+      envoymesh:
+        ipv4_address: 10.0.0.11
+    ports:
+      - "8080"
+  all-in-one-server-green:
+    image: turbinelabs/all-in-one-server
+    environment:
+      TBN_COLOR: 1CAD0C
+      TBN_NAME: green
+    networks:
+      envoymesh:
+        ipv4_address: 10.0.0.12
+    ports:
+      - "8080"
+  zipkin:
+    image: openzipkin/zipkin
+    networks:
+      envoymesh:
+        aliases:
+          - zipkin
+    expose:
+      - "9411"
+    ports:
+      - "9411:9411"
+
+networks:
+  envoymesh:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.0.0.1/16
